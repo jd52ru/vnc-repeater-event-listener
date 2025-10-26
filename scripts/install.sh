@@ -286,7 +286,7 @@ else
     exit 1
 fi
 
-if [ -f "/usr/sbin/uvncrepeatersvc" ] && systemctl enable uvncrepeater.service 2>/dev/null; then
+if systemctl enable uvncrepeater.service; then
     print_success "UltraVNC Repeater service enabled"
 else
     print_warning "UltraVNC Repeater service not enabled (may not be installed)"
