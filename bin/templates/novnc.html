@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>VNC Client - Session {{ session_id }}</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        #top_bar {
+            background: rgba(255, 255, 255, 0.95);
+            color: #333;
+            font: bold 14px 'Segoe UI';
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+            flex-shrink: 0;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        #status {
+            text-align: center;
+            flex: 1;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .top-bar-buttons {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+        
+        .btn:hover {
+            background: #0056b3;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+        }
+        
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        
+        #screen {
+            flex: 1;
+            background: #000;
+            position: relative;
+            overflow: hidden;
+            border-radius: 0 0 15px 15px;
+            margin: 0 20px 20px 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        .loading {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            z-index: 10;
+            font-family: 'Segoe UI', sans-serif;
+        }
+        
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+        
+        .modal-content {
+            background: rgba(255, 255, 255, 0.98);
+            padding: 40px;
+            border-radius: 15px;
+            width: 450px;
+            max-width: 90%;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            color: #333;
+        }
+        
+        .modal-content h3 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+        
+        .modal-content p {
+            margin-bottom: 20px;
+            color: #666;
+            font-size: 1rem;
+            line-height: 1.5;
+        }
+        
+        #vncPasswordInput {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            background: white;
+            color: #333;
+            font-size: 16px;
+            margin-bottom: 25px;
+            transition: border-color 0.3s ease;
+            font-family: 'Segoe UI', sans-serif;
+        }
+        
+        #vncPasswordInput:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+        }
+        
+        .modal-buttons {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+        }
+        
+        .modal-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            min-width: 120px;
+        }
+        
+        .modal-btn:hover {
+            background: #0056b3;
+            transform: translateY(-1px);
+        }
+        
+        .modal-btn-danger {
+            background: #6c757d;
+        }
+        
+        .modal-btn-danger:hover {
+            background: #5a6268;
+        }
+        
+        .session-info {
+            background: #f8f9fa;
+            padding: 12px 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid #007bff;
+            color: #333;
+        }
+        
+        .session-info strong {
+            color: #007bff;
+        }
+        
+        .auto-close-message {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            color: #856404;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div id="passwordModal" class="modal">
+        <div class="modal-content">
+            <h3>🔐 VNC Authentication Required</h3>
+            <div class="session-info">
+                <strong>Session ID:</strong> {{ session_id }}
+            </div>
+            <p>Please enter the VNC password displayed on the Android device to establish the connection:</p>
+            <input type="password" id="vncPasswordInput" placeholder="Enter VNC password" autofocus>
+            <div class="modal-buttons">
+                <button class="modal-btn" id="modalConnectBtn">Connect</button>
+                <button class="modal-btn modal-btn-danger" id="modalCancelBtn">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="top_bar">
+        <div id="status">Ready - Enter password to connect</div>
+        <div class="top-bar-buttons">
+            <button class="btn btn-danger" id="closeButton">Close Session</button>
+        </div>
+    </div>
+    <div id="screen">
+        <div class="loading" id="loadingMessage">
+            Ready - Enter password to connect
+        </div>
+    </div>
+
+    <script type="module">
+        import RFB from '/static/noVNC/core/rfb.js';
+
+        let rfb;
+        let desktopName;
+        let vncPassword = '';
+        const websockifyPort = {{ websockify_port }};
+        const serverHost = '{{ server_host }}';
+        const sessionId = {{ session_id }};
+
+        // Отключаем предупреждение о TLS
+        const originalWarn = console.warn;
+        console.warn = function(...args) {
+            if (args[0] && args[0].includes('noVNC requires a secure context')) {
+                return;
+            }
+            originalWarn.apply(console, args);
+        };
+
+        function status(text) {
+            document.getElementById('status').textContent = text;
+        }
+
+        function showLoading(message) {
+            const loading = document.getElementById('loadingMessage');
+            loading.textContent = message;
+            loading.style.display = 'flex';
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingMessage').style.display = 'none';
+        }
+
+        function showPasswordModal() {
+            document.getElementById('passwordModal').style.display = 'flex';
+            document.getElementById('vncPasswordInput').focus();
+            document.getElementById('vncPasswordInput').value = '';
+        }
+
+        function hidePasswordModal() {
+            document.getElementById('passwordModal').style.display = 'none';
+        }
+
+        function connectWithPassword() {
+            vncPassword = document.getElementById('vncPasswordInput').value.trim();
+            
+            if (!vncPassword) {
+                alert('Please enter VNC password');
+                return;
+            }
+            
+            hidePasswordModal();
+            connectVNC();
+        }
+
+        function closeSession() {
+            // Закрываем соединение
+            if (rfb) {
+                rfb.disconnect();
+            }
+            
+            status('Session closed');
+            showLoading('Session closed - Closing window...');
+            
+            // Закрываем окно после небольшой задержки
+            setTimeout(() => {
+                window.close();
+            }, 500);
+        }
+
+        function closeOnServerDisconnect() {
+            status('Server disconnected');
+            showLoading('Server disconnected - Closing window...');
+            
+            // Закрываем окно через 1,5 секунды, чтобы пользователь увидел сообщение
+            setTimeout(() => {
+                window.close();
+            }, 1500);
+        }
+
+        function cancelConnection() {
+            hidePasswordModal();
+            closeSession();
+        }
+
+        function connectedToServer(e) {
+            status("Connected to " + desktopName);
+            hideLoading();
+            
+            if (rfb) {
+                rfb.scaleViewport = true;
+            }
+        }
+
+        function disconnectedFromServer(e) {
+            if (e.detail.clean) {
+                // Чистое отключение - сервер разорвал соединение
+                console.log("Server disconnected cleanly, closing window");
+                closeOnServerDisconnect();
+            } else {
+                // Нечистое отключение - возможно проблемы с сетью
+                console.log("Connection closed unexpectedly");
+                status("Connection closed");
+                showLoading("Connection lost - Enter password to reconnect");
+                showPasswordModal();
+            }
+        }
+
+        function credentialsAreRequired(e) {
+            status("Password Required");
+            if (vncPassword) {
+                rfb.sendCredentials({ password: vncPassword });
+            } else {
+                showPasswordModal();
+            }
+        }
+
+        function updateDesktopName(e) {
+            desktopName = e.detail.name;
+        }
+
+        function connectVNC() {
+            try {
+                showLoading("Connecting to device...");
+                status("Connecting");
+
+                let url;
+                if (window.location.protocol === "https:") {
+                    url = 'wss';
+                } else {
+                    url = 'ws';
+                }
+                url += '://' + serverHost;
+                if(websockifyPort) {
+                    url += ':' + websockifyPort;
+                }
+                url += '/websockify';
+
+                console.log("Connecting to:", url);
+
+                rfb = new RFB(document.getElementById('screen'), url, {
+                    shared: true,
+                    credentials: { password: vncPassword },
+                    repeaterID: sessionId.toString()
+                });
+
+                rfb.addEventListener("connect", connectedToServer);
+                rfb.addEventListener("disconnect", disconnectedFromServer);
+                rfb.addEventListener("credentialsrequired", credentialsAreRequired);
+                rfb.addEventListener("desktopname", updateDesktopName);
+
+                rfb.viewOnly = false;
+                rfb.scaleViewport = true;
+                rfb.resizeSession = false;
+
+            } catch (error) {
+                console.error('Connection error:', error);
+                status("Connection failed");
+                showLoading('Connection failed: ' + error.message);
+                showPasswordModal();
+            }
+        }
+
+        // Обработчики событий
+        document.getElementById('modalConnectBtn').addEventListener('click', connectWithPassword);
+        document.getElementById('modalCancelBtn').addEventListener('click', cancelConnection);
+        document.getElementById('closeButton').addEventListener('click', closeSession);
+
+        document.getElementById('vncPasswordInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                connectWithPassword();
+            }
+        });
+
+        // Автоматическое открытие модалки при загрузке
+        showPasswordModal();
+
+        // Закрываем соединение при закрытии страницы
+        window.addEventListener('beforeunload', function() {
+            if (rfb) {
+                rfb.disconnect();
+            }
+        });
+
+        // Обработка закрытия окна браузера
+        window.addEventListener('unload', function() {
+            if (rfb) {
+                rfb.disconnect();
+            }
+        });
+    </script>
+</body>
+</html>
