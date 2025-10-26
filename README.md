@@ -31,8 +31,8 @@ cd vnc-repeater-event-listener
 
 **Для RedOS:**
 ```bash
-sudo yum update
-sudo yum install -y python3 python3-venv gcc-c++ make git
+sudo dnf update
+sudo dnf install -y python3 python3-venv gcc-c++ make git
 ```
 
 **Проверка установленных компонентов:**
